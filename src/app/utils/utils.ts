@@ -35,7 +35,8 @@ export function supports_html5_storage() {
   try {
       return 'localStorage' in window && window['localStorage'] !== null;
   } catch (e) {
-      return false;
+    this.g.wdLog(['> Error :' + e]);
+    return false;
   }
 }
 
@@ -43,7 +44,8 @@ export function supports_html5_session() {
   try {
       return 'sessionStorage' in window && window['sessionStorage'] !== null;
   } catch (e) {
-      return false;
+    this.g.wdLog(['> Error :' + e]);
+    return false;
   }
 }
 
@@ -109,15 +111,19 @@ function convertUrlToTag(url) {
 
 
 export function isPopupUrl(url) {
-  const TEMP = url.split('popup=')[1];
-  // può essere seguito da & oppure "
-  if (TEMP) {
-    if (TEMP.startsWith('true')) {
-      return true;
+  try {
+    const TEMP = url.split('popup=')[1];
+    // può essere seguito da & oppure "
+    if (TEMP) {
+      if (TEMP.startsWith('true')) {
+        return true;
+      } else {
+        return false;
+      }
     } else {
       return false;
     }
-  } else {
+  } catch (e) {
     return false;
   }
 }
@@ -167,8 +173,10 @@ export function strip_tags(html) {
 }
 
 export function replaceBr(text) {
-  const newText = text.replace(/[\n\r]/g, '<br>');
-  return newText;
+  if (text) { const newText = text.replace(/[\n\r]/g, '<br>');
+    return newText;
+  }
+  return text;
 }
 
 export function avatarPlaceholder(conversation_with_fullname) {
@@ -298,11 +306,25 @@ export function stringToBoolean(string: any): any {
   let val = string;
   if (typeof string !== 'string') {
     val = JSON.stringify(string);
+    return val;
+  }
+  if (!string) {
+    return;
   }
   switch (val.toLowerCase().trim()) {
       case 'true': case 'yes': case '1': return true;
       case 'false': case 'no': case '0': case null: return false;
       default: return val;
   }
+}
+
+export function getUnique(arr, comp) {
+  const unique = arr
+    .map(e => e[comp])
+     // store the keys of the unique objects
+    .map((e, i, final) => final.indexOf(e) === i && i)
+    // eliminate the dead keys & store unique objects
+    .filter(e => arr[e]).map(e => arr[e]);
+   return unique;
 }
 

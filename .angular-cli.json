@@ -16,8 +16,10 @@
         "test-auth.html",
         "test-auth-remote.html",
         "testi.html",
+        "test-custom-auth.html",
         "launch.js",
-        "iframe-style.css"
+        "iframe-style.css",
+        "firebase-config.json"
       ],
       "index": "index.html",
       "main": "main.ts",
@@ -32,7 +34,9 @@
       "environmentSource": "environments/environment.ts",
       "environments": {
         "dev": "environments/environment.ts",
-        "prod": "environments/environment.prod.ts"
+        "pre": "environments/environment.pre.ts",
+        "prod": "environments/environment.prod.ts",
+        "remoteconf": "environments/environment.remoteconf.ts"
       }
     }
   ],

@@ -1,6 +1,8 @@
 import { Injectable } from '@angular/core';
-import * as firebase from 'firebase';
+// firebase
+import * as firebase from 'firebase/app';
 import 'firebase/database';
+
 
 import { BehaviorSubject } from 'rxjs/BehaviorSubject';
 
@@ -10,9 +12,11 @@ import { Globals } from '../utils/globals';
 // models
 import { ConversationModel } from '../../models/conversation';
 // utils
-import { avatarPlaceholder, setColorFromString, getFromNow, compareValues } from '../utils/utils';
+import { getUnique, avatarPlaceholder, setColorFromString, getFromNow, compareValues } from '../utils/utils';
+
 // import { ConsoleReporter } from 'jasmine';
 import { SettingsSaverService } from '../providers/settings-saver.service';
+
 
 
 
@@ -26,6 +30,7 @@ export class ConversationsService {
   // obsAllConversations: any;
   obsArchivedConversations: any;
   obsListConversations: any;
+  obsChangeConversation: any;
 
   tenant: string;
   senderId: string;
@@ -53,7 +58,7 @@ export class ConversationsService {
     // this.obsAllConversations = new BehaviorSubject<[ConversationModel]>(null);
     this.obsArchivedConversations = new BehaviorSubject<[ConversationModel]>(null);
     this.obsListConversations = new BehaviorSubject<[ConversationModel]>(null);
-
+    this.obsChangeConversation = new BehaviorSubject<ConversationModel>(null);
   }
 
 
@@ -150,9 +155,11 @@ export class ConversationsService {
   // }
   // // ============== end:: subscribe to conversations ================//
 
+
+
   // ============== begin:: subscribe to conversations ================//
   public checkListConversations() {
-    const limit = 100;
+    const limit = 10;
     const that = this;
     const firebaseConversations = firebase.database().ref(this.urlConversation);
     this.conversationRef = firebaseConversations.orderByChild('timestamp').limitToLast(limit);
@@ -160,46 +167,59 @@ export class ConversationsService {
 
     //// SUBSCRIBE ADDED ////
     this.conversationRef.on('child_added', function (childSnapshot) {
-      that.g.wdLog(['childSnapshot.val() *****', childSnapshot.val()]);
       const conversation = that.setConversation(childSnapshot, false);
-
-      if ( that.g.filterByRequester === false || (that.g.filterByRequester === true &&
-        conversation.attributes && conversation.attributes.requester_id === that.g.senderId ) ) {
-        that.listConversations.unshift(conversation); // insert item top array
-        that.checkIsNew(conversation);
-        that.checkIsSound(conversation);
-        that.updateConversationBadge();
-        that.listConversations.sort(compareValues('timestamp', 'desc'));
-        that.g.wdLog(['checkListConversations - child_added: ', that.listConversations.length]);
-        that.obsListConversations.next(that.listConversations);
+      that.g.wdLog(['child_added val *****', childSnapshot.val()]);
+      if (that.ifCanAddConversation(conversation)) {
+          const index = that.searchIndexInArrayForUid(that.listConversations, childSnapshot.key);
+          if (index === -1) {
+            setTimeout(function () {
+              // console.log('***** NEXT *****');
+              that.listConversations.unshift(conversation); // insert item top array
+              that.checkIsNew(conversation);
+              that.checkIsSound(conversation);
+              that.updateConversationBadge();
+              that.listConversations.sort(compareValues('timestamp', 'desc'));
+              that.listConversations = getUnique(that.listConversations, 'uid');
+              that.g.wdLog(['checkListConversations - child_added: ', that.listConversations.length]);
+              that.obsListConversations.next(that.listConversations);
+            }, 0);
+          }
       }
     });
 
     // SUBSCRIBE CHANGED ////
     this.conversationRef.on('child_changed', function (childSnapshot) {
+      that.g.wdLog(['child_changed val *****', childSnapshot.val()]);
       const conversation = that.setConversation(childSnapshot, false);
-      if ( that.g.filterByRequester === false || (that.g.filterByRequester === true &&
-        conversation.attributes && conversation.attributes.requester_id === that.g.senderId ) ) {
+      if (that.ifCanAddConversation(conversation)) {
         const index = that.searchIndexInArrayForUid(that.listConversations, childSnapshot.key);
         if (index > -1) {
-          that.listConversations.splice(index, 1, conversation);
-          that.checkIsNew(conversation);
-          that.checkIsSound(conversation);
-          that.updateConversationBadge();
-          that.listConversations.sort(compareValues('timestamp', 'desc'));
-          that.obsListConversations.next(that.listConversations);
-          that.g.wdLog(['checkListConversations child_changed *****', that.listConversations, index]);
+          setTimeout(function () {
+            that.listConversations.splice(index, 1, conversation);
+            that.checkIsNew(conversation);
+            that.checkIsSound(conversation);
+            that.updateConversationBadge();
+            that.listConversations.sort(compareValues('timestamp', 'desc'));
+            that.listConversations = getUnique(that.listConversations, 'uid');
+            that.g.wdLog(['checkListConversations child_changed *****', that.listConversations, index]);
+            that.obsListConversations.next(that.listConversations);
+            that.obsChangeConversation.next(conversation);
+          }, 0);
         }
       }
     });
 
     //// SUBSCRIBE REMOVED ////
     this.conversationRef.on('child_removed', function (childSnapshot) {
+      that.g.wdLog(['child_removed val *****', childSnapshot.val()]);
       const index = that.searchIndexInArrayForUid(that.listConversations, childSnapshot.key);
       if (index > -1) {
-        that.listConversations.splice(index, 1);
-        that.listConversations.sort(compareValues('timestamp', 'desc'));
-        that.obsListConversations.next(that.listConversations);
+        setTimeout(function () {
+          that.listConversations.splice(index, 1);
+          that.listConversations.sort(compareValues('timestamp', 'desc'));
+          that.listConversations = getUnique(that.listConversations, 'uid');
+          that.obsListConversations.next(that.listConversations);
+        }, 0);
       }
       that.updateConversationBadge();
     });
@@ -220,31 +240,28 @@ export class ConversationsService {
     ref.on('child_added', function (childSnapshot) {
       that.g.wdLog(['childSnapshot.val() *****', childSnapshot.val()]);
       const conversation = that.setConversation(childSnapshot, true);
-      if ( that.g.filterByRequester === false || (that.g.filterByRequester === true &&
-        conversation.attributes && conversation.attributes.requester_id === that.g.senderId ) ) {
-        that.archivedConversations.unshift(conversation); // insert item top array
-        // that.updateConversations();
-        that.checkIsNew(conversation);
-        // that.checkIsSound(conversation);
-        // that.updateConversationBadge();
-        that.archivedConversations.sort(compareValues('timestamp', 'desc'));
-        that.obsArchivedConversations.next(that.archivedConversations);
+      if (that.ifCanAddConversation(conversation)) {
+        const index = that.searchIndexInArrayForUid(that.archivedConversations, childSnapshot.key);
+        if (index === -1) {
+          that.archivedConversations.unshift(conversation); // insert item top array
+          that.checkIsNew(conversation);
+          that.archivedConversations.sort(compareValues('timestamp', 'desc'));
+          that.archivedConversations = getUnique(that.archivedConversations, 'uid');
+          that.obsArchivedConversations.next(that.archivedConversations);
+        }
       }
     });
 
     //// SUBSCRIBE CHANGED ////
     ref.on('child_changed', function (childSnapshot) {
       const conversation = that.setConversation(childSnapshot, true);
-      if ( that.g.filterByRequester === false || (that.g.filterByRequester === true &&
-        conversation.attributes && conversation.attributes.requester_id === that.g.senderId ) ) {
+      if (that.ifCanAddConversation(conversation)) {
         const index = that.searchIndexInArrayForUid(that.archivedConversations, childSnapshot.key);
         if (index > -1) {
           that.archivedConversations.splice(index, 1, conversation);
-          // that.updateConversations();
           that.checkIsNew(conversation);
-          // that.checkIsSound(conversation);
-          // that.updateConversationBadge();
           that.archivedConversations.sort(compareValues('timestamp', 'desc'));
+          that.archivedConversations = getUnique(that.archivedConversations, 'uid');
           that.obsArchivedConversations.next(that.archivedConversations);
           that.g.wdLog([' checkListArchivedConversations child_changed *****', that.archivedConversations, index]);
         }
@@ -257,6 +274,7 @@ export class ConversationsService {
       if (index > -1) {
         that.archivedConversations.splice(index, 1);
         that.archivedConversations.sort(compareValues('timestamp', 'desc'));
+        that.archivedConversations = getUnique(that.archivedConversations, 'uid');
         that.obsArchivedConversations.next(that.archivedConversations);
         // that.updateConversations();
       }
@@ -264,6 +282,24 @@ export class ConversationsService {
     });
   }
   // ========= end:: subscribe to archived conversations ============//
+
+  /**
+   * Verifica se aggiungere o meno una conversazione
+   * @param conversation
+   */
+  private ifCanAddConversation(conversation: ConversationModel) {
+    // console.log('***** CONTROLLO FILTRO BY REQUESTER ID *****');
+    this.g.wdLog(['***** filterByRequester *****', this.g.filterByRequester]);
+    // this.g.wdLog(['***** requester_id *****', conversation.attributes.requester_id]);
+    this.g.wdLog(['***** that.g.senderId *****', this.g.senderId]);
+    if (this.g.filterByRequester === false ||
+      (this.g.filterByRequester === true && conversation.attributes && conversation.attributes.requester_id === this.g.senderId)
+      ) {
+        return true;
+      } else {
+        return false;
+      }
+  }
 
   /**
    * 1 - concat array conversations
@@ -346,7 +382,7 @@ export class ConversationsService {
     });
     this.g.wdLog(['updateConversationBadge', conversationsBadge]);
     // console.log("updateConversationBadge", conversationsBadge);
-    this.g.setParameters('conversationsBadge', conversationsBadge);
+    this.g.setParameter('conversationsBadge', conversationsBadge);
     // this.settingsSaverService.setVariable('conversationsBadge', conversationsBadge);
   }
 
@@ -431,5 +467,6 @@ export class ConversationsService {
   searchIndexInArrayForUid(items, key) {
     return items.findIndex(i => i.recipient === key);
   }
+
 
 }

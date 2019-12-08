@@ -19,7 +19,7 @@ export class TranslatorService {
   public translate(globals) {
     // set language
     this.setLanguage(globals.windowContext,  globals.lang);
-    globals.setParameters('lang', this.language);
+    // globals.setParameter('lang', this.language);
 
     // translate
     globals.LABEL_PLACEHOLDER = this.translateForKey('LABEL_PLACEHOLDER');
@@ -70,9 +70,15 @@ export class TranslatorService {
     globals.SEE_PREVIOUS = this.translateForKey('SEE_PREVIOUS');
     globals.WAITING_TIME_FOUND = this.translateForKey('WAITING_TIME_FOUND');
     globals.WAITING_TIME_NOT_FOUND = this.translateForKey('WAITING_TIME_NOT_FOUND');
+    globals.CLOSED = this.translateForKey('CLOSED');
 
-    globals.wellcomeTitle = globals.WELLCOME_TITLE;   /** Set the widget welcome message. Value type : string */
-    globals.wellcomeMsg = globals.WELLCOME_MSG;       /** Set the widget welcome message. Value type : string */
+    if (!globals.wellcomeTitle) {
+      globals.wellcomeTitle = globals.WELLCOME_TITLE;   /** Set the widget welcome message. Value type : string */
+    }
+    if (!globals.wellcomeMsg) {
+      globals.wellcomeMsg = globals.WELLCOME_MSG;       /** Set the widget welcome message. Value type : string */
+    }
+
 
 }
 
@@ -81,7 +87,7 @@ export class TranslatorService {
    * @returns the browser language
    */
   public getBrowserLanguage(windowContext) {
-    console.log('windowContext', windowContext);
+    // console.log('windowContext', windowContext);
     const browserLanguage = windowContext.navigator.language;
     return !browserLanguage ? undefined : browserLanguage;
   }
@@ -92,7 +98,7 @@ export class TranslatorService {
    * @param language the language
    */
   public setLanguage(windowContext, language) {
-    console.log('windowContext-language', windowContext, language);
+    // console.log('windowContext-language', windowContext, language);
     // set the user languge if it is valid.
     // if the user language is not valid, try to get the browser language.
     // if the browser language is not valid, it use the default language (en)
@@ -111,6 +117,7 @@ export class TranslatorService {
     }
     this.language = this.language.substring(0, 2);
     // retrieve the translation
+    // console.log('LINGUA IMPOSTATA: ', this.language);
     this.getLanguageObject(this.language);
   }
 

@@ -11,13 +11,13 @@ export class AppConfigService {
   }
 
   loadAppConfig() {
-    console.log('error loadAppConfig', this.appConfig.apiUrl + 'settings');
-    return this.http.get(this.appConfig.apiUrl + 'settings')
+    // return this.http.get(this.appConfig.apiUrl + 'settings')
+    return this.http.get(this.appConfig.remoteConfigUrl)
       .toPromise()
       .then(data => {
-        this.appConfig = data;
+        this.appConfig.firebase = data;
       }).catch(err => {
-        console.log('error loadAppConfig');
+        // console.log('error loadAppConfig');
       });
   }
 

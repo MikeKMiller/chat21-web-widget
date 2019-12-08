@@ -1,4 +1,5 @@
-import { Component, NgZone, OnInit, Input, Output, EventEmitter, OnDestroy } from '@angular/core';
+import { Component, NgZone, OnInit, AfterViewInit, Input, Output, EventEmitter, OnDestroy, ViewChild, ElementRef } from '@angular/core';
+
 import { Subscription } from 'rxjs/Subscription';
 // services
 import { ConversationsService } from '../../providers/conversations.service';
@@ -25,8 +26,9 @@ import {HumanizeDurationLanguage, HumanizeDuration} from 'humanize-duration-ts';
   styleUrls: ['./list-conversations.component.scss']
 })
 
-export class ListConversationsComponent implements OnInit, OnDestroy {
 
+export class ListConversationsComponent implements OnInit, AfterViewInit, OnDestroy {
+  @ViewChild('aflistconv') private aflistconv: ElementRef;
   // ========= begin:: Input/Output values ============//
   @Output() eventNewConv = new EventEmitter<string>();
   @Output() eventSelctedConv = new EventEmitter<string>();
@@ -72,49 +74,34 @@ export class ListConversationsComponent implements OnInit, OnDestroy {
     public waitingService: WaitingService,
     public translatorService: TranslatorService
   ) {
-
     // console.log(this.langService);
     // https://www.npmjs.com/package/humanize-duration-ts
     // https://github.com/Nightapes/HumanizeDuration.ts/blob/master/src/humanize-duration.ts
     this.humanizer = new HumanizeDuration(this.langService);
-    //   const defaultOptions: IHumanizeDurationOptions = {
-    //     language: 'en',
-    //     delimiter: ', ',
-    //     spacer: ' ',
-    //     conjunction: '',
-    //     serialComma: true,
-    //     units: ['y', 'mo', 'w', 'd', 'h', 'm', 's'],
-    //     languages: {},
-    //     largest: 10,
-    //     decimal: '.',
-    //     round: true,
-    //     unitMeasures: {
-    //         y: 31557600000,
-    //         mo: 2629800000,
-    //         w: 604800000,
-    //         d: 86400000,
-    //         h: 3600000,
-    //         m: 60000,
-    //         s: 1000,
-    //         ms: 1
-    //     }
-    // };
     this.humanizer.setOptions({round: true});
     this.initialize();
-    this.showConversations();
   }
 
   ngOnInit() {
     this.g.wdLog([' ngOnInit:::: ', this.listConversations]);
   }
 
+  ngAfterViewInit() {
+    this.g.wdLog([' --------ngAfterViewInit-------- ']);
+    setTimeout(() => {
+      if (this.aflistconv) {
+        this.aflistconv.nativeElement.focus();
+      }
+    }, 1000);
+  }
+
 
   showConversations() {
-
     this.g.wdLog([' showConversations:::: ', this.listConversations.length]);
     const that = this;
-    if (!this.subListConversations) {
-      this.subListConversations = this.conversationsService.obsListConversations.subscribe((conversations) => {
+    let subListConversations;
+    if (!subListConversations) {
+      subListConversations = this.conversationsService.obsListConversations.subscribe((conversations) => {
           that.ngZone.run(() => {
             if (conversations && conversations.length > 3) {
               that.listConversations = conversations.slice(0, 3);
@@ -125,7 +112,7 @@ export class ListConversationsComponent implements OnInit, OnDestroy {
             that.g.wdLog([' conversations = 0 :::: ', that.listConversations]);
           });
       });
-      this.subscriptions.push(this.subListConversations);
+      this.subscriptions.push(subListConversations);
     }
 
     if (!this.subArchivedConversations) {
@@ -147,23 +134,19 @@ export class ListConversationsComponent implements OnInit, OnDestroy {
     this.listConversations = [];
     this.archivedConversations = [];
     this.waitingTime = -1;
-    const availableAgents = this.g.availableAgents;
-    this.availableAgents = availableAgents.slice(0, 5);
-
+    this.availableAgents = this.g.availableAgents;
     this.g.wdLog(['senderId: ', this.senderId]);
     this.g.wdLog(['tenant: ', this.tenant]);
-
     this.conversationsService.initialize(this.senderId, this.tenant);
     this.conversationsService.checkListConversations();
     this.conversationsService.checkListArchivedConversations();
     this.listConversations = this.conversationsService.listConversations;
     this.g.wdLog(['this.listConversations.length', this.listConversations.length]);
     this.g.wdLog(['this.listConversations', this.listConversations]);
-
     if (this.g.supportMode) {
       this.showWaitingTime();
     }
-
+    this.showConversations();
   }
 
   showWaitingTime() {

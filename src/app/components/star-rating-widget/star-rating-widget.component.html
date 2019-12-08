@@ -15,7 +15,7 @@ svg.star:hover{
         <div class="c21-header-container">
             <!-- ICON CLOSE CHAT -->
             <!-- <div class="c21-header-button">
-                <div class="c21-close-button c21-small" tabindex="-1" aria-label="Close" aria-hidden="true" role="button">
+                <div class="c21-close-button c21-small"  aria-label="Close" aria-hidden="true" role="button">
                     <div class="c21-close-button-body" (click)="returnClosePage()">
                         <svg role="img" aria-labelledby="altIconTitle" [ngStyle]="{'fill': g.themeForegroundColor }"
                             xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewBox="0 0 24 24">
@@ -59,10 +59,10 @@ svg.star:hover{
                 ***************  STEP 0  ***************** 
                 -->
                 <div *ngIf="step==0" class="step-rate">
-                    <div class="c21-modal-content" style="text-align: right; margin: 0px 20px 30px 10px;">
-                        <a href="#" class="c21-link" (click)="dowloadTranscript()" >
+                    <div *ngIf="g.allowTranscriptDownload" class="c21-modal-content" style="text-align: right; margin: 0px 20px 30px 10px;">
+                        <div class="c21-link" (click)="dowloadTranscript()" >
                             <span [ngStyle]="{'color': g.themeColor}">{{ g.DOWNLOAD_TRANSCRIPT }}</span>
-                        </a>
+                        </div>
                     </div>
                     <div class="clear"></div>
                    
@@ -108,10 +108,10 @@ svg.star:hover{
                 -->
                 <div *ngIf="step==1" class="step-rate">
                     <!-- CONTENT -->
-                    <div class="c21-modal-content" style="text-align: right; margin: 0px 20px 30px 10px;">
-                        <a href="#" class="c21-link" (click)="dowloadTranscript()" >
+                    <div *ngIf="g.allowTranscriptDownload" class="c21-modal-content" style="text-align: right; margin: 0px 20px 30px 10px;">
+                        <div class="c21-link" (click)="dowloadTranscript()" >
                             <span [ngStyle]="{'color': g.themeColor}">{{ g.DOWNLOAD_TRANSCRIPT }}</span>
-                        </a>
+                        </div>
                     </div>
                     <div class="clear"></div>
                     <div class="c21-step-content">
@@ -149,10 +149,10 @@ svg.star:hover{
                 ***************  STEP 2  ***************** 
                 -->
                 <div *ngIf="step==2" class="step-rate">
-                    <div class="c21-modal-content" style="text-align: right; margin: 0px 20px 30px 10px;">
-                        <a href="#" class="c21-link" (click)="dowloadTranscript()" >
+                    <div *ngIf="g.allowTranscriptDownload" class="c21-modal-content" style="text-align: right; margin: 0px 20px 30px 10px;">
+                        <div class="c21-link" (click)="dowloadTranscript()" >
                             <span [ngStyle]="{'color': g.themeColor}">{{ g.DOWNLOAD_TRANSCRIPT }}</span>
-                        </a>
+                        </div>
                     </div>
                     <div class="clear"></div>
                 

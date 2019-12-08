@@ -1,4 +1,4 @@
-import { Component, OnInit, Input, Output, EventEmitter, ViewEncapsulation } from '@angular/core';
+import { ElementRef, ViewChild, Component, OnInit, Input, Output, EventEmitter, ViewEncapsulation } from '@angular/core';
 import { Globals } from '../../utils/globals';
 import { convertColorToRGBA } from '../../utils/utils';
 
@@ -11,6 +11,7 @@ import { convertColorToRGBA } from '../../utils/utils';
   encapsulation: ViewEncapsulation.None, /* it allows to customize 'Powered By' */
 })
 export class HomeComponent implements OnInit {
+  @ViewChild('homeComponent') private element: ElementRef;
   // ========= begin:: Input/Output values ===========/
   @Output() eventNewConv = new EventEmitter<string>();
   @Output() eventSelctedConv = new EventEmitter<string>();
@@ -22,14 +23,10 @@ export class HomeComponent implements OnInit {
 
 
   // ========= begin:: component variables ======= //
-  themeColor;
-  themeForegroundColor;
   tenant;
   widgetTitle;
   wellcomeMsg;
   wellcomeTitle;
-  themeColor50: string;
-  colorGradient: string;
   colorBck: string;
   // ========= end:: component variables ======= //
 
@@ -43,44 +40,51 @@ export class HomeComponent implements OnInit {
   }
 
   ngOnInit() {
-    this.g.wdLog(['ngOnInit app-home']);
     // get global variables
+    this.g.wdLog(['ngOnInit app-home']);
     this.tenant = this.g.tenant;
-    this.themeColor = this.g.themeColor;
-    this.themeForegroundColor = this.g.themeForegroundColor;
-    this.widgetTitle = this.g.widgetTitle;
-    this.wellcomeMsg = this.g.wellcomeMsg;
-    this.wellcomeTitle = this.g.wellcomeTitle;
-    // https://stackoverflow.com/questions/7015302/css-hexadecimal-rgba
-    this.themeColor50 = convertColorToRGBA(this.themeColor, 30); // this.g.themeColor + 'CC';
-    this.colorGradient = 'linear-gradient(' + this.themeColor + ', ' + this.themeColor50 + ')';
     this.colorBck = '#000000';
-  }
 
+    if (this.g.firstOpen === true) {
+      this.addAnimation();
+      this.g.firstOpen = false;
+    }
+    // https://stackoverflow.com/questions/7015302/css-hexadecimal-rgba
+    // this.themeColor50 = convertColorToRGBA(this.themeColor, 30); // this.g.themeColor + 'CC';
+    // this.colorGradient = 'linear-gradient(' + this.themeColor + ', ' + this.themeColor50 + ')';
+  }
 
   // ========= begin:: ACTIONS ============//
   returnNewConversation() {
+    // rimuovo classe animazione
+    this.removeAnimation();
     this.eventNewConv.emit();
   }
 
   returnOpenAllConversation() {
+    // rimuovo classe animazione
+    this.removeAnimation();
     this.eventOpenAllConv.emit();
   }
 
   returnSelectedConversation($event) {
     if ( $event ) {
+      // rimuovo classe animazione
+      this.removeAnimation();
       this.eventSelctedConv.emit($event);
     }
   }
 
   f21_close() {
+    // aggiungo classe animazione
+    this.addAnimation();
     this.eventClose.emit();
   }
 
   hideMenuOptions() {
     this.g.wdLog(['hideMenuOptions']);
     // this.g.isOpenMenuOptions = false;
-    this.g.setParameters('isOpenMenuOptions', false);
+    this.g.setParameter('isOpenMenuOptions', false);
   }
 
 
@@ -94,4 +98,24 @@ export class HomeComponent implements OnInit {
 
   // ========= end:: ACTIONS ============//
 
+  addAnimation() {
+    try {
+      const mainDiv = this.element.nativeElement;
+      if (mainDiv) {
+        mainDiv.classList.add('start-animation');
+      }
+    } catch (error) {
+        this.g.wdLog(['> Error :' + error]);
+    }
+  }
+  removeAnimation() {
+    try {
+      const mainDiv = this.element.nativeElement;
+      if (mainDiv) {
+        mainDiv.classList.remove('start-animation');
+      }
+    } catch (error) {
+      this.g.wdLog(['> Error :' + error]);
+    }
+  }
 }

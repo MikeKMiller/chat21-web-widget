@@ -1,10 +1,10 @@
 import { Injectable } from '@angular/core';
 import { Headers, Http } from '@angular/http';
 
-// import { AngularFireDatabase } from 'angularfire2/database';
-// import { AngularFireAuth } from 'angularfire2/auth';
-import * as firebase from 'firebase';
+// firebase
+import * as firebase from 'firebase/app';
 import 'firebase/database';
+
 
 import { BehaviorSubject } from 'rxjs/BehaviorSubject';
 import { Observable } from 'rxjs/Observable';
@@ -14,9 +14,9 @@ import { DepartmentModel } from '../../models/department';
 import { MessageModel } from '../../models/message';
 import { StarRatingWidgetService } from '../components/star-rating-widget/star-rating-widget.service';
 // tslint:disable-next-line:max-line-length
-import { MSG_STATUS_RECEIVED, TYPE_MSG_TEXT, UID_SUPPORT_GROUP_MESSAGES } from '../utils/constants';
+import { IMG_PROFILE_BOT, IMG_PROFILE_DEFAULT, MSG_STATUS_SENT_SERVER, MSG_STATUS_RECEIVED, TYPE_MSG_TEXT, UID_SUPPORT_GROUP_MESSAGES } from '../utils/constants';
 // utils
-import { searchIndexInArrayForUid, setHeaderDate, replaceBr } from '../utils/utils';
+import { getImageUrlThumb, searchIndexInArrayForUid, setHeaderDate, replaceBr } from '../utils/utils';
 import { Globals } from '../utils/globals';
 import { StorageService } from '../providers/storage.service';
 import { AppConfigService } from '../providers/app-config.service';
@@ -69,20 +69,21 @@ export class MessagingService {
    * da modificare e da spostare da qui!!!
    * chiamata da app component sull'init!!!
    */
-  public getMongDbDepartments(projectId): Observable<DepartmentModel[]> {
-    const url = this.API_URL + projectId + '/departments/';
-    this.g.wdLog(['***** getMongDbDepartments *****', url]);
-    // const url = `http://api.chat21.org/app1/departments`;
-    // tslint:disable-next-line:max-line-length
-    // const TOKEN = 'JWT eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyIkX18iOnsic3RyaWN0TW9kZSI6dHJ1ZSwic2VsZWN0ZWQiOnsiZW1haWwiOjEsImZpcnN0bmFtZSI6MSwibGFzdG5hbWUiOjEsInBhc3N3b3JkIjoxLCJpZCI6MX0sImdldHRlcnMiOnt9LCJfaWQiOiI1YWFiYWRlODM5ZGI3ZDAwMTQ3N2QzZDUiLCJ3YXNQb3B1bGF0ZWQiOmZhbHNlLCJhY3RpdmVQYXRocyI6eyJwYXRocyI6eyJwYXNzd29yZCI6ImluaXQiLCJlbWFpbCI6ImluaXQiLCJsYXN0bmFtZSI6ImluaXQiLCJmaXJzdG5hbWUiOiJpbml0IiwiX2lkIjoiaW5pdCJ9LCJzdGF0ZXMiOnsiaWdub3JlIjp7fSwiZGVmYXVsdCI6e30sImluaXQiOnsibGFzdG5hbWUiOnRydWUsImZpcnN0bmFtZSI6dHJ1ZSwicGFzc3dvcmQiOnRydWUsImVtYWlsIjp0cnVlLCJfaWQiOnRydWV9LCJtb2RpZnkiOnt9LCJyZXF1aXJlIjp7fX0sInN0YXRlTmFtZXMiOlsicmVxdWlyZSIsIm1vZGlmeSIsImluaXQiLCJkZWZhdWx0IiwiaWdub3JlIl19LCJwYXRoc1RvU2NvcGVzIjp7fSwiZW1pdHRlciI6eyJkb21haW4iOm51bGwsIl9ldmVudHMiOnt9LCJfZXZlbnRzQ291bnQiOjAsIl9tYXhMaXN0ZW5lcnMiOjB9LCIkb3B0aW9ucyI6dHJ1ZX0sImlzTmV3IjpmYWxzZSwiX2RvYyI6eyJsYXN0bmFtZSI6IlNwb256aWVsbG8iLCJmaXJzdG5hbWUiOiJBbmRyZWEiLCJwYXNzd29yZCI6IiQyYSQxMCRkMHBTV3lTQkp5ejFQLmE0Y0QuamwubnpvbW9xMGlXZUlHRmZqRGNQZVhUeENpRUVJOTdNVyIsImVtYWlsIjoic3BvbnppZWxsb0BnbWFpbC5jb20iLCJfaWQiOiI1YWFiYWRlODM5ZGI3ZDAwMTQ3N2QzZDUifSwiJGluaXQiOnRydWUsImlhdCI6MTUyMTY1MjE3Mn0.-iBbE2gCDrcUF1uh9HdK1kVsIRyRCBi_Pvm7LJEKhbs';
-    //  that.g.wdLog(['MONGO DB DEPARTMENTS URL', url, TOKEN);
-    const headers = new Headers();
-    headers.append('Content-Type', 'application/json');
-    // headers.append('Authorization', TOKEN);
-    return this.http
-      .get(url, { headers })
-      .map((response) => response.json());
-  }
+  // public getMongDbDepartments(projectId): Observable<DepartmentModel[]> {
+  //   const url = this.API_URL + projectId + '/departments/';
+  //   this.g.wdLog(['***** getMongDbDepartments *****', url]);
+  //   // const url = `http://api.chat21.org/app1/departments`;
+  //   // tslint:disable-next-line:max-line-length
+  // tslint:disable-next-line:max-line-length
+  //   // const TOKEN = 'JWT eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyIkX18iOnsic3RyaWN0TW9kZSI6dHJ1ZSwic2VsZWN0ZWQiOnsiZW1haWwiOjEsImZpcnN0bmFtZSI6MSwibGFzdG5hbWUiOjEsInBhc3N3b3JkIjoxLCJpZCI6MX0sImdldHRlcnMiOnt9LCJfaWQiOiI1YWFiYWRlODM5ZGI3ZDAwMTQ3N2QzZDUiLCJ3YXNQb3B1bGF0ZWQiOmZhbHNlLCJhY3RpdmVQYXRocyI6eyJwYXRocyI6eyJwYXNzd29yZCI6ImluaXQiLCJlbWFpbCI6ImluaXQiLCJsYXN0bmFtZSI6ImluaXQiLCJmaXJzdG5hbWUiOiJpbml0IiwiX2lkIjoiaW5pdCJ9LCJzdGF0ZXMiOnsiaWdub3JlIjp7fSwiZGVmYXVsdCI6e30sImluaXQiOnsibGFzdG5hbWUiOnRydWUsImZpcnN0bmFtZSI6dHJ1ZSwicGFzc3dvcmQiOnRydWUsImVtYWlsIjp0cnVlLCJfaWQiOnRydWV9LCJtb2RpZnkiOnt9LCJyZXF1aXJlIjp7fX0sInN0YXRlTmFtZXMiOlsicmVxdWlyZSIsIm1vZGlmeSIsImluaXQiLCJkZWZhdWx0IiwiaWdub3JlIl19LCJwYXRoc1RvU2NvcGVzIjp7fSwiZW1pdHRlciI6eyJkb21haW4iOm51bGwsIl9ldmVudHMiOnt9LCJfZXZlbnRzQ291bnQiOjAsIl9tYXhMaXN0ZW5lcnMiOjB9LCIkb3B0aW9ucyI6dHJ1ZX0sImlzTmV3IjpmYWxzZSwiX2RvYyI6eyJsYXN0bmFtZSI6IlNwb256aWVsbG8iLCJmaXJzdG5hbWUiOiJBbmRyZWEiLCJwYXNzd29yZCI6IiQyYSQxMCRkMHBTV3lTQkp5ejFQLmE0Y0QuamwubnpvbW9xMGlXZUlHRmZqRGNQZVhUeENpRUVJOTdNVyIsImVtYWlsIjoic3BvbnppZWxsb0BnbWFpbC5jb20iLCJfaWQiOiI1YWFiYWRlODM5ZGI3ZDAwMTQ3N2QzZDUifSwiJGluaXQiOnRydWUsImlhdCI6MTUyMTY1MjE3Mn0.-iBbE2gCDrcUF1uh9HdK1kVsIRyRCBi_Pvm7LJEKhbs';
+  //   //  that.g.wdLog(['MONGO DB DEPARTMENTS URL', url, TOKEN);
+  //   const headers = new Headers();
+  //   headers.append('Content-Type', 'application/json');
+  //   // headers.append('Authorization', TOKEN);
+  //   return this.http
+  //     .get(url, { headers })
+  //     .map((response) => response.json());
+  // }
 
 
   /**
@@ -99,7 +100,8 @@ export class MessagingService {
   }
 
   /**
-   *
+   * genero un uid univoco
+   * da passare al servizio ogni volta che invio un msg
    */
   connect(conversationWith) {
     this.g.wdLog(['***** connect MessagingService *****']);
@@ -161,34 +163,54 @@ export class MessagingService {
           message['channel_type'],
           message['progectId']
         );
-        // azzero sto scrivendo
-        // that.deleteWritingMessages(message['sender']);
-        // notifico arrivo nuovo messaggio
-        //  that.g.wdLog(['NOTIFICO NW MSG *****', that.obsAdded);
-        // that.obsAdded.next(msg);
-        if (message && message.sender === that.senderId) {
-          // && message.type !== TYPE_MSG_TEXT) {
-          // sto aggiungendo un'immagine inviata da me!!!
-          // const index = searchIndexInArrayForUid(that.messages, childSnapshot.key);
-          // that.messages.splice(index, 1, msg);
-          const index = searchIndexInArrayForUid(that.messages, childSnapshot.key);
-          //  that.g.wdLog(['index *****', index, childSnapshot.key);
-          if (index < 0) {
-            that.g.wdLog(['--------> ADD MSG IMG', index, msg]);
-            msg.status = '150';
-            that.messages.push(msg);
-          }
-        } else {
-          // se msg è inviato da me cambio status
-          // that.obsAddedMsg.next(text);
-          msg.status = '150';
-          that.g.wdLog(['--------> ADD MSG', msg.status]);
-          that.messages.push(msg);
+        msg.sender_urlImage = that.getUrlImgProfile(message['sender']);
+        that.triggerGetImageUrlThumb(msg);
+        if (that.messages.indexOf(message) === -1) {
+          that.addMessage(msg);
         }
-        that.messages.sort(that.compareValues('timestamp', 'asc'));
-        that.obsAdded.next(msg);
       }
     });
+  }
+
+  /**
+   * recupero url immagine profilo
+   * @param uid
+   */
+  getUrlImgProfile(uid: string): string {
+    const baseLocation = this.g.baseLocation;
+    if (!uid || uid === 'system' ) {
+      return baseLocation + IMG_PROFILE_BOT;
+    } else if ( uid === 'error') {
+      return baseLocation + IMG_PROFILE_DEFAULT;
+    } else {
+      return getImageUrlThumb(uid);
+    }
+  }
+
+
+  private addMessage(message) {
+    if (message && message.sender === this.senderId) {
+      const index = searchIndexInArrayForUid(this.messages, message.key);
+      if (index < 0) {
+        this.g.wdLog(['--------> ADD MSG IMG', index, message]);
+        message.status = MSG_STATUS_SENT_SERVER.toString();
+        this.messages.push(message);
+      }
+    } else {
+      message.status = MSG_STATUS_SENT_SERVER.toString();
+      this.g.wdLog(['--------> ADD MSG', message.status]);
+      console.log('--------> MSG ESISTE: ', this.messages.indexOf(message));
+      this.messages.push(message);
+      // this.triggerOnNewMessageReceived(message);
+    }
+
+    this.messages.sort(this.compareValues('timestamp', 'asc'));
+    this.obsAdded.next(message);
+    try {
+      this.storageService.setItem('messages', JSON.stringify(this.messages));
+    } catch (error) {
+      this.g.wdLog(['> Error :' + error]);
+    }
   }
 
   /**
@@ -314,7 +336,7 @@ export class MessagingService {
     const that = this;
     // const now: Date = new Date();
     // const localTimestamp = now.valueOf();
-    const timestamp =  firebase.database.ServerValue.TIMESTAMP;
+    const timestamp = firebase.database.ServerValue.TIMESTAMP;
     const language = navigator.language;
     const dateSendingMessage = setHeaderDate(timestamp);
     const message = new MessageModel(
@@ -334,7 +356,7 @@ export class MessagingService {
       channel_type,
       projectid
     );
-    //this.messages.push(message);
+    // this.messages.push(message);
     const conversationRef = firebase.database().ref(this.urlMessages + conversationWith);
     that.g.wdLog([message.toString()]);
 
@@ -421,7 +443,8 @@ export class MessagingService {
     const newMessageRef = this.firebaseMessagesKey.push();
     const key = UID_SUPPORT_GROUP_MESSAGES + newMessageRef.key;
     // sessionStorage.setItem(uid, key);
-    this.storageService.setItem(uid, key);
+    this.g.wdLog(['setItem ************** UID:', uid, ' KWY: ', key]);
+    // this.storageService.setItem(uid, key);
     this.conversationWith = key;
     return key;
   }
@@ -468,6 +491,24 @@ export class MessagingService {
     this.g.wdLog(['--------> messagesRef.off']);
     this.messagesRef.off();
     // this.conversationsRef.off('child_removed');
+  }
+
+
+  /** TRIGGERS */
+
+  /** */
+  private triggerGetImageUrlThumb(message: MessageModel) {
+    try {
+      const windowContext = this.g.windowContext;
+      const triggerGetImageUrlThumb = new CustomEvent('getImageUrlThumb', { detail: { message: message } });
+      if (windowContext.tiledesk && windowContext.tiledesk.tiledeskroot) {
+        windowContext.tiledesk.tiledeskroot.dispatchEvent(triggerGetImageUrlThumb);
+      } else {
+        // this.el.nativeElement.dispatchEvent(triggerGetImageUrlThumb);
+      }
+    } catch (e) {
+      this.g.wdLog(['> Error :' + e]);
+    }
   }
 
 }

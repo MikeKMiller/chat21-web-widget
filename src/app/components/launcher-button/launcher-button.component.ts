@@ -1,6 +1,7 @@
-import { Component, OnInit, Output, EventEmitter } from '@angular/core';
+import { Component, OnInit, Output, EventEmitter, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
 import { Globals } from '../../utils/globals';
 import { StorageService } from '../../providers/storage.service';
+import { convertColorToRGBA } from '../../utils/utils';
 
 import { trigger, state, style, animate, transition } from '@angular/animations';
 // vedi: https://angular.io/guide/animations
@@ -36,7 +37,9 @@ import { trigger, state, style, animate, transition } from '@angular/animations'
     )
   ]
 })
-export class LauncherButtonComponent implements OnInit {
+
+export class LauncherButtonComponent implements OnInit, AfterViewInit {
+  @ViewChild('aflauncherbutton') private aflauncherbutton: ElementRef;
   @Output() eventOpenCloseWidget = new EventEmitter<boolean>();
 
   isOpen: boolean;
@@ -50,15 +53,23 @@ export class LauncherButtonComponent implements OnInit {
     this.g.wdLog(['open_close_handler BUTTON 1: ', this.g.isOpen]);
   }
 
+  ngAfterViewInit() {
+    setTimeout(() => {
+        if (!this.g.isOpen && this.aflauncherbutton) {
+          // this.aflauncherbutton.nativeElement.focus();
+          const themeColor50 = convertColorToRGBA(this.g.themeColor, 50);
+          this.aflauncherbutton.nativeElement.style['box-shadow'] = '0px 4px 20px ' + themeColor50;
+        }
+    }, 0);
+  }
+
+
   openCloseWidget() {
     const isLogged = this.g.isLogged;
-    console.log('1 isLogged BUTTON: ', isLogged);
     if (isLogged === true) {
       this.g.isOpen = !this.g.isOpen;
-      console.log('2 isOpen BUTTON: ', this.g.isOpen);
       // this.g.setIsOpen(!isOpen);
       this.storageService.setItem('isOpen', this.g.isOpen);
-      console.log('3 open_close_handler BUTTON: ', this.g.isOpen);
       this.eventOpenCloseWidget.emit( this.g.isOpen );
     }
   }

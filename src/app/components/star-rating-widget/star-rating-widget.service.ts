@@ -67,7 +67,7 @@ export class StarRatingWidgetService {
     this.g.wdLog(['------------------> options: ', options]);
     this.g.wdLog(['------------------> body: ', JSON.stringify(body)]);
     return this.http
-      .put(url, JSON.stringify(body), options)
+      .post(url, JSON.stringify(body), options)
       .map(res => (res.json()));
     // .timeout(10000) // in milli sec
   }
@@ -86,9 +86,10 @@ export class StarRatingWidgetService {
   }
 
   _dowloadTranscript(recipientId) {
-    const url = 'https://api.tiledesk.com/v1/public/requests/' + recipientId + '/messages.html';
+    const url = this.API_URL + 'public/requests/' + recipientId + '/messages.html';
     const windowContext = this.g.windowContext;
     windowContext.open(url, '_blank');
+    // windowContext.location.reload(true);
   }
 
 }

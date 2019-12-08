@@ -1,4 +1,5 @@
-import { Component, OnInit, Output, EventEmitter } from '@angular/core';
+import { Component, OnInit, Output, EventEmitter, ElementRef, AfterViewInit, ViewChild } from '@angular/core';
+
 import { FormBuilder, Validators, ReactiveFormsModule, FormGroup, FormControl } from '@angular/forms';
 import { Globals } from '../../utils/globals';
 import { StorageService } from '../../providers/storage.service';
@@ -8,7 +9,9 @@ import { StorageService } from '../../providers/storage.service';
   templateUrl: './prechat-form.component.html',
   styleUrls: ['./prechat-form.component.scss']
 })
-export class PrechatFormComponent implements OnInit {
+
+export class PrechatFormComponent implements OnInit, AfterViewInit {
+  @ViewChild('afPrechatFormComponent') private afPrechatFormComponent: ElementRef;
 
   // ========= begin:: Input/Output values ===========//
   @Output() eventClosePage = new EventEmitter();
@@ -41,6 +44,15 @@ export class PrechatFormComponent implements OnInit {
     }
   }
 
+  ngAfterViewInit() {
+    setTimeout(() => {
+      if (this.afPrechatFormComponent) {
+        this.afPrechatFormComponent.nativeElement.focus();
+      }
+    }, 1000);
+}
+
+
   // START FORM
   // https://scotch.io/tutorials/using-angular-2s-model-driven-forms-with-formgroup-and-formcontrol
 
@@ -71,9 +83,12 @@ export class PrechatFormComponent implements OnInit {
   openNewConversation() {
     if (this.g.attributes) {
       const attributes = this.g.attributes;
-      attributes['userFullname'] = this.userFullname;
-      attributes['userEmail'] = this.userEmail;
-      this.g.setParameters('attributes', attributes);
+
+      this.g.setAttributeParameter('userFullname', this.userFullname);
+      this.g.setAttributeParameter('userEmail', this.userEmail);
+      // attributes['userFullname'] = this.userFullname;
+      // attributes['userEmail'] = this.userEmail;
+      // this.g.setParameter('attributes', attributes);
       this.storageService.setItem('attributes', JSON.stringify(attributes));
       this.eventCloseForm.emit();
     } else {

@@ -4,10 +4,9 @@ import 'rxjs/add/operator/map';
 import { Observable } from 'rxjs/Observable';
 import { BehaviorSubject } from 'rxjs/BehaviorSubject';
 
-// import * as firebase from 'firebase/app';
-import * as firebase from 'firebase';
+// firebase
+import * as firebase from 'firebase/app';
 import 'firebase/storage';
-
 
 import { UploadModel } from '../../models/upload';
 import { environment } from '../../environments/environment';
@@ -93,9 +92,12 @@ export class UploadService {
 
 
   pushUpload(upload: UploadModel): any {
-    const uid = this.createGuid();
+    let uid = this.createGuid();
+    uid =  uid + '_' + upload.file.name;
+
+
     const urlImagesNodeFirebase = '/public/images/' + uid + '/';
-     this.g.wdLog(['pushUpload::::::::::::: ', urlImagesNodeFirebase]);
+    this.g.wdLog(['pushUpload::::::::::::: ', urlImagesNodeFirebase]);
 
     // Create a root reference
     const storageRef = firebase.storage().ref();

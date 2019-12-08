@@ -25,6 +25,8 @@
             .c21-close-button-body {
               width: 31px;
               height: 31px;
+              -webkit-appearance: initial;
+              border: none;
             }
         }
     }
@@ -64,7 +66,7 @@
     // margin: 0px auto;
     // overflow-y: scroll;
     // height: calc(100% - 52px);
-    overflow: scroll;
+    overflow: hidden;
     .c21-body-header {
       padding: 10px 30px;
       .c21-message-field {
@@ -239,7 +241,7 @@
     textarea.textarea-rate:hover,
     textarea.textarea-rate:focus,
     textarea.textarea-rate:active {
-        outline-width: 0px;
+        // outline-width: 0px;
     }
   }
   .c21-step-content { 

@@ -15,6 +15,8 @@ export class MenuOptionsComponent implements OnInit {
    @Output() eventSignOut = new EventEmitter();
    // ========= end:: Input/Output values ============//
   themeColor50: string;
+  hover: boolean;
+
   constructor(
     public g: Globals,
     public storageService: StorageService
@@ -27,11 +29,12 @@ export class MenuOptionsComponent implements OnInit {
   }
 
   f21_toggle_options() {
-    this.g.setParameters('isOpenMenuOptions', !this.g.isOpenMenuOptions);
+    this.g.setParameter('isOpenMenuOptions', !this.g.isOpenMenuOptions);
   }
 
   toggleSound() {
-    this.g.setParameters('isSoundActive', !this.g.isSoundActive);
+    this.g.setParameter('isSoundActive', !this.g.isSoundActive);
+    this.g.setParameter('isOpenMenuOptions', false);
     // this.g.isSoundActive = !this.g.isSoundActive;
     // if ( this.g.isSoundActive === false ) {
     //   this.storageService.setItem('isSoundActive', false);
@@ -41,7 +44,7 @@ export class MenuOptionsComponent implements OnInit {
   }
 
   signOut() {
-    this.g.setParameters('isOpenMenuOptions', false);
+    this.g.setParameter('isOpenMenuOptions', false);
     this.eventSignOut.emit();
   }
 

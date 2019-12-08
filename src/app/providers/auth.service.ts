@@ -1,7 +1,10 @@
 import { Injectable } from '@angular/core';
 // import { AngularFireAuth } from '@angular/fire/auth';
-import * as firebase from 'firebase';
+
+// firebase
+import * as firebase from 'firebase/app';
 import 'firebase/auth';
+
 import { BehaviorSubject } from 'rxjs/BehaviorSubject';
 import { environment } from '../../environments/environment';
 import { Http, Headers, RequestOptions } from '@angular/http';
@@ -43,10 +46,13 @@ export class AuthService {
     this.unsubscribe = firebase.auth().onAuthStateChanged(user => {
       if (!user) {
         that.g.wdLog(['NO CURRENT USER PASSO NULL']);
-        that.obsLoggedUser.next(0);
+        if (that.g.isLogout === false ) {
+          that.obsLoggedUser.next(0);
+        }
       } else {
         that.g.wdLog(['PASSO CURRENT USER']);
         that.user = firebase.auth().currentUser;
+        that.g.wdLog(['onAuthStateChanged']);
         that.getIdToken();
         that.obsLoggedUser.next(firebase.auth().currentUser);
         // that.obsCurrentUser.next(that.user);
@@ -55,9 +61,17 @@ export class AuthService {
   }
 
   getCurrentUser() {
+    this.g.wdLog([' ---------------- getCurrentUser ---------------- ']);
     return firebase.auth().currentUser;
   }
 
+  reloadCurrentUser() {
+    return firebase.auth().currentUser.reload();
+    // .then(() => {
+    //   // console.log(firebase.auth().currentUser);
+    //   return firebase.auth().currentUser;
+    // });
+  }
 
   getIdToken() {
     this.g.wdLog(['getIdToken CURRENT USER']);
@@ -89,6 +103,7 @@ export class AuthService {
             if (that.unsubscribe) {
               that.unsubscribe();
             }
+            that.g.wdLog(['authenticateFirebaseAnonymously']);
             that.getIdToken();
             that.obsLoggedUser.next(firebase.auth().currentUser);
           })
@@ -98,31 +113,35 @@ export class AuthService {
               if (that.unsubscribe) {
                 that.unsubscribe();
               }
-              that.obsLoggedUser.next(0);
               that.g.wdLog(['signInAnonymously ERROR: ', errorCode, errorMessage]);
+              that.obsLoggedUser.next(0);
           });
         })
     .catch(function(error) {
       console.error('Error setting firebase auth persistence', error);
+      // that.obsLoggedUser.next(0);
     });
   }
 
 
   authenticateFirebaseCustomToken(token) {
-    this.g.wdLog(['authService.authenticateFirebaseCustomToken', token]);
+    this.g.wdLog(['1 - authService.authenticateFirebaseCustomToken']);
     const that = this;
     firebase.auth().setPersistence(this.getFirebaseAuthPersistence()).then(function() {
-      //  that.g.wdLog(['token: ', token);
       // Sign-out successful.
       firebase.auth().signInWithCustomToken(token)
-      .then(function(user) {
-        that.g.wdLog(['USER by signInWithCustomToken: ', user]);
-        that.user = user;
+      .then(function(response) {
+        // that.g.wdLog(['USER by signInWithCustomToken: ' + response.user.getIdToken()]);
+        // console.log('USER by signInWithCustomToken: ', response);
+        that.g.setParameter('firebaseToken', token);
+        that.g.setParameter('signInWithCustomToken', true);
+        that.user = response.user;
         if (that.unsubscribe) {
           that.unsubscribe();
         }
+        this.g.wdLog(['obsLoggedUser - authService.authenticateFirebaseCustomToken']);
         that.obsLoggedUser.next(firebase.auth().currentUser);
-        that.getToken();
+        // that.getToken();????
       })
       .catch(function(error) {
           const errorCode = error.code;
@@ -130,8 +149,8 @@ export class AuthService {
           if (that.unsubscribe) {
             that.unsubscribe();
           }
-          that.obsLoggedUser.next(0);
           that.g.wdLog(['authenticateFirebaseCustomToken ERROR: ', errorCode, errorMessage]);
+          that.obsLoggedUser.next(0);
       });
     })
     .catch(function(error) {
@@ -159,8 +178,9 @@ export class AuthService {
         if (that.unsubscribe) {
           that.unsubscribe();
         }
-        that.obsLoggedUser.next(firebase.auth().currentUser);
         that.getIdToken();
+        that.g.wdLog(['authenticateFirebaseWithEmailAndPassword']);
+        that.obsLoggedUser.next(firebase.auth().currentUser);
       })
       .catch(function(error) {
         const errorCode = error.code;
@@ -168,8 +188,8 @@ export class AuthService {
         if (that.unsubscribe) {
           that.unsubscribe();
         }
-        that.obsLoggedUser.next(0);
         that.g.wdLog(['authenticateFirebaseWithEmailAndPassword ERROR: ', errorCode, errorMessage]);
+        that.obsLoggedUser.next(0);
       });
     })
     .catch(function(error) {
@@ -220,12 +240,15 @@ export class AuthService {
     return firebase.auth().signOut()
     .then(value => {
       that.g.wdLog(['Nice, signOut OK!', value]);
+      that.hideIFrame();
       if (that.unsubscribe) {
         that.unsubscribe();
       }
       if (code) {
+        that.g.wdLog(['obsLoggedUser', code]);
         that.obsLoggedUser.next(code);
       } else {
+        that.g.wdLog(['obsLoggedUser -1']);
         that.obsLoggedUser.next(-1);
       }
     })
@@ -235,11 +258,17 @@ export class AuthService {
     });
   }
 
+  hideIFrame() {
+    const divWidgetContainer = this.g.windowContext.document.getElementById('tiledesk-container');
+    if (divWidgetContainer) {
+      divWidgetContainer.classList.add('closed');
+      divWidgetContainer.classList.remove('open');
+    }
+  }
 
   // /jwt/decode?project_id=123
   public decode(token, projectId) {
     const url = this.API_URL + projectId + '/jwt/decode';
-
     const headers = new Headers();
     headers.append('Content-Type', 'application/json');
     headers.append('Authorization', 'JWT ' + token);
@@ -249,14 +278,15 @@ export class AuthService {
   }
 
   public createFirebaseToken(token, projectId) {
-    const url = this.API_URL + projectId + '/firebase/createtoken';
-
+    // const url = this.API_URL + projectId + '/firebase/createtoken';
+    const url = this.API_URL + 'chat21/firebase/auth/createCustomToken';
     const headers = new Headers();
     headers.append('Content-Type', 'application/json');
-    headers.append('Authorization', 'JWT ' + token);
+    // headers.append('Authorization', 'JWT ' + token);
+    headers.append('Authorization', token);
     return this.http
       .post(url, null, { headers })
-      .map((response) => response.json());
+      .map((response) => response.text());
   }
 
   getFirebaseAuthPersistence() {

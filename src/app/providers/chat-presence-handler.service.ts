@@ -1,5 +1,7 @@
 import { Injectable } from '@angular/core';
-import * as firebase from 'firebase';
+
+// firebase
+import * as firebase from 'firebase/app';
 import 'firebase/database';
 
 import { Globals } from '../utils/globals';
@@ -102,6 +104,7 @@ export class ChatPresenceHandlerService {
    * 7 - aggiungo job su onDisconnect di lastOnlineRef che imposta timestamp
    * 8 - salvo reference connected nel singlelton !!!!! DA FARE
    * @param userid
+   * https://firebase.google.com/docs/database/web/offline-capabilities#section-connection-state
    */
   setupMyPresence(userid) {
     const that = this;
@@ -110,21 +113,33 @@ export class ChatPresenceHandlerService {
     this.lastOnlineRef = this.lastOnlineRefForUser(userid);
     const connectedRefURL = '/.info/connected';
     const conn = firebase.database().ref(connectedRefURL);
+
     conn.on('value', function(dataSnapshot) {
-      //  that.g.wdLog(["KEY: ",dataSnapshot,that.deviceConnectionRef);
-      if (dataSnapshot.val()) {
-        // if (!that.myConnectionsRef || that.myConnectionsRef==='undefined') {
+      if (dataSnapshot.val() === true) {
+        that.g.wdLog(['setupMyPresence: val: ' + dataSnapshot.val() + that.myConnectionsRef]);
         if (that.myConnectionsRef) {
-          // this.deviceConnectionRef = myConnectionsRef.set(true);
-          const conection = true;
-          // that.deviceConnectionRef =
-          const keyMyConnectionRef = that.myConnectionsRef.push(conection);
-          // !!! quando faccio logout devo disconnettermi
-          keyMyConnectionRef.onDisconnect().remove();
-          // when I disconnect, update the last time I was seen online
+          // We're connected (or reconnected)! Do anything here that should happen only if online (or on reconnect)
+          const con = that.myConnectionsRef.push();
+
+          // When I disconnect, remove this device
+          con.onDisconnect().remove(function(err) {
+            if (err) {
+              console.error('could not establish onDisconnect event', err);
+            }
+          });
+
+          // Add this device to my connections list
+          // this value could contain info about the device or a timestamp too
+          con.set(true);
+
+          // When I disconnect, update the last time I was seen online
           const now: Date = new Date();
           const timestamp = now.valueOf();
-          that.lastOnlineRef.onDisconnect().set(timestamp);
+          that.lastOnlineRef.onDisconnect().set(timestamp, function(err) {
+            if (err) {
+              console.error('could not establish onDisconnect event', err);
+            }
+          });
         } else {
           that.g.wdLog(['This is an error. self.deviceConnectionRef already set. Cannot be set again.']);
         }
@@ -138,19 +153,19 @@ export class ChatPresenceHandlerService {
    */
   goOffline() {
     this.g.wdLog(['goOffline.', this.myConnectionsRef]);
-    // this.removeConnectionReference();
+    this.removeConnectionReference();
     this.removeLastOnlineReference();
   }
 
-  // removeConnectionReference() {
-  //   if (this.myConnectionsRef) {
-  //     this.myConnectionsRef.off();
-  //     that.g.wdLog(['goOffline 1', this.myConnectionsRef]);
-  //     this.myConnectionsRef.remove();
-  //     that.g.wdLog(['goOffline 2', this.myConnectionsRef]);
-  //     this.myConnectionsRef = null;
-  //   }
-  // }
+  removeConnectionReference() {
+    if (this.myConnectionsRef) {
+      this.myConnectionsRef.off();
+      this.g.wdLog(['goOffline 1', this.myConnectionsRef]);
+      this.myConnectionsRef.remove();
+      this.g.wdLog(['goOffline 2', this.myConnectionsRef]);
+      this.myConnectionsRef = null;
+    }
+  }
 
   removeLastOnlineReference() {
     if (this.lastOnlineRef) {

@@ -4,11 +4,12 @@ import { Subscription } from 'rxjs/Subscription';
 import { Globals } from '../../utils/globals';
 import { MessagingService } from '../../providers/messaging.service';
 import { ConversationsService } from '../../providers/conversations.service';
+import { AppConfigService } from '../../providers/app-config.service';
 
 import {
   CHANNEL_TYPE_DIRECT, CHANNEL_TYPE_GROUP, TYPE_MSG_TEXT,
   MSG_STATUS_SENT, MSG_STATUS_RETURN_RECEIPT, MSG_STATUS_SENT_SERVER,
-  TYPE_MSG_IMAGE, MAX_WIDTH_IMAGES, IMG_PROFILE_BOT, IMG_PROFILE_DEFAULT
+  TYPE_MSG_FILE, TYPE_MSG_IMAGE, MAX_WIDTH_IMAGES, IMG_PROFILE_BOT, IMG_PROFILE_DEFAULT
 } from '../../utils/constants';
 import { UploadService } from '../../providers/upload.service';
 import { ContactService } from '../../providers/contact.service';
@@ -31,6 +32,7 @@ import {DomSanitizer} from '@angular/platform-browser';
 
 import { AppComponent } from '../../app.component';
 import { StorageService } from '../../providers/storage.service';
+import { DepartmentModel } from '../../../models/department';
 
 @Component({
   selector: 'tiledeskwidget-conversation',
@@ -41,6 +43,7 @@ import { StorageService } from '../../providers/storage.service';
 })
 export class ConversationComponent implements OnInit, AfterViewInit, OnChanges {
   @ViewChild('scrollMe') private scrollMe: ElementRef; // l'ID del div da scrollare
+  @ViewChild('afConversationComponent') private afConversationComponent: ElementRef; // l'ID del div da scrollare
   // @HostListener('window:resize', ['$event'])
   // ========= begin:: Input/Output values
   @Output() eventClose = new EventEmitter();
@@ -80,6 +83,7 @@ export class ConversationComponent implements OnInit, AfterViewInit, OnChanges {
 
   // text used within the html
   private LABEL_PLACEHOLDER: string;
+  private API_URL: string;
 
   userEmail: string;
   userFullname: string;
@@ -93,9 +97,9 @@ export class ConversationComponent implements OnInit, AfterViewInit, OnChanges {
   isNewConversation = true;
   // availableAgentsStatus = false; // indica quando è impostato lo stato degli agenti nel subscribe
   messages: Array<MessageModel>;
-
+  recipient_fullname: String;
   // attributes: any;
-  GUEST_LABEL = '';
+  // GUEST_LABEL = '';
 
   CLIENT_BROWSER: string = navigator.userAgent;
 
@@ -115,6 +119,7 @@ export class ConversationComponent implements OnInit, AfterViewInit, OnChanges {
   MSG_STATUS_RETURN_RECEIPT = MSG_STATUS_RETURN_RECEIPT;
   // ========== end:: icon status message
 
+  lastMsg = false;
 
   constructor(
     public el: ElementRef,
@@ -128,23 +133,15 @@ export class ConversationComponent implements OnInit, AfterViewInit, OnChanges {
     public sanitizer: DomSanitizer,
     public appComponent: AppComponent,
     public storageService: StorageService,
-    public conversationsService: ConversationsService
+    public conversationsService: ConversationsService,
+    public appConfigService: AppConfigService
   ) {
+    this.API_URL = this.appConfigService.getConfig().apiUrl;
     this.initAll();
-
     // this.soundMessage(); // SOLO UN TEST DA ELIMINARE!!!
   }
 
-  // onResized(event: ResizedEvent): void {
-  //   const that = this;
-  //   this.ngZone.run(() => {
-  //     that.g.wdLog([' ResizedEvent  ', event]);
-  //     //that.scrollToBottom();
-  //   });
-  // }
-
   ngOnInit() {
-    console.log('ngOnInit');
     // this.initAll();
     this.g.wdLog([' ngOnInit: app-conversation ', this.g]);
     const that = this;
@@ -161,13 +158,21 @@ export class ConversationComponent implements OnInit, AfterViewInit, OnChanges {
 
   ngAfterViewInit() {
     this.g.wdLog([' --------ngAfterViewInit-------- ']);
+    // console.log('attributes: ', this.g.attributes);
+    setTimeout(() => {
+      if (this.afConversationComponent) {
+        this.afConversationComponent.nativeElement.focus();
+      }
+    }, 1000);
+
   }
 
+
   ngOnChanges() {
-    console.log('ngOnChanges');
+    // console.log('ngOnChanges');
     if (this.isOpen === true) {
       this.updateConversationBadge();
-      this.scrollToBottom();
+      // this.scrollToBottom();
     }
   }
 
@@ -202,8 +207,18 @@ export class ConversationComponent implements OnInit, AfterViewInit, OnChanges {
     this.g.wdLog([' ---------------- 5: setAvailableAgentsStatus ---------------- ']);
     this.setAvailableAgentsStatus();
 
-    this.g.setParameters('activeConversation', this.conversationWith);
+    this.g.setParameter('activeConversation', this.conversationWith);
     // this.checkListMessages();
+
+    try {
+      JSON.parse(this.g.customAttributes, (key, value) => {
+        if (key === 'recipient_fullname') {
+          this.g.recipientFullname = value;
+        }
+      });
+    } catch (error) {
+        this.g.wdLog(['> Error :' + error]);
+    }
   }
 
   onResize(event) {
@@ -212,25 +227,40 @@ export class ConversationComponent implements OnInit, AfterViewInit, OnChanges {
   }
 
   /**
-   * mi sottoscrivo al nodo /projects/' + projectId + '/users/availables
-   * per verificare se c'è un agent disponibile
+   * OLD: mi sottoscrivo al nodo /projects/' + projectId + '/users/availables
+   * i dipartimenti e gli agenti disponibili sono già stati impostati nello step precedente
+   * recuperati dal server (/widget) e settati in global
+   * imposto il messaggio online/offline a seconda degli agenti disponibili
+   * aggiungo il primo messaggio alla conversazione
    */
   private setAvailableAgentsStatus() {
-    // set first message customized for department
-    const departmentDefault = this.g.departmentDefault;
 
-    if (departmentDefault && departmentDefault.online_msg) {
-      this.g.LABEL_FIRST_MSG = departmentDefault.online_msg;
+    const departmentDefault: DepartmentModel =  this.g.departmentDefault;
+    this.g.wdLog(['departmentDefault', departmentDefault]);
+    this.g.wdLog(['messages1: ', this.g.online_msg, this.g.offline_msg]);
+    if (!this.g.online_msg || this.g.online_msg === 'undefined' || this.g.online_msg === '') {
+      this.g.online_msg = this.g.LABEL_FIRST_MSG;
     }
-    if (departmentDefault && departmentDefault.offline_msg) {
-      this.g.LABEL_FIRST_MSG_NO_AGENTS = departmentDefault.offline_msg;
+    if (!this.g.offline_msg || this.g.offline_msg === 'undefined' || this.g.offline_msg === '') {
+      this.g.offline_msg = this.g.LABEL_FIRST_MSG_NO_AGENTS;
     }
-    // if (this.g.availableAgents && this.g.availableAgents.length <= 0) {
-    //   this.addFirstMessage(this.g.LABEL_FIRST_MSG_NO_AGENTS);
-    // } else {
-    //   this.addFirstMessage(this.g.LABEL_FIRST_MSG);
-    // }
-    this.getAvailableAgentsForDepartment();
+
+    this.g.wdLog(['messages2: ', this.g.online_msg, this.g.offline_msg]);
+    const availableAgentsForDep = this.g.availableAgents;
+    if (availableAgentsForDep && availableAgentsForDep.length <= 0) {
+      this.addFirstMessage(this.g.offline_msg);
+      this.g.areAgentsAvailableText = this.g.AGENT_NOT_AVAILABLE;
+    } else {
+      this.addFirstMessage(this.g.online_msg);
+      this.g.areAgentsAvailableText = this.g.AGENT_AVAILABLE;
+    }
+
+    if ( this.g.recipientId.includes('_bot') || this.g.recipientId.includes('bot_') ) {
+      this.g.areAgentsAvailableText = '';
+    }
+    this.g.wdLog(['messages: ', this.g.online_msg, this.g.offline_msg]);
+
+    // this.getAvailableAgentsForDepartment();
 
   }
 
@@ -238,25 +268,26 @@ export class ConversationComponent implements OnInit, AfterViewInit, OnChanges {
    * mi sottoscrivo al nodo /departments/' + idDepartmentSelected + '/operators/';
    * per verificare se c'è un agent disponibile
    */
-  private getAvailableAgentsForDepartment() {
-    const that = this;
-    const projectid = this.g.projectid;
-    const departmentSelected = this.g.departmentSelected;
+  // private getAvailableAgentsForDepartment() {
+  //   const that = this;
+  //   const projectid = this.g.projectid;
+  //   const departmentSelectedId = this.g.attributes.departmentId;
+  //   this.g.wdLog(['departmentSelectedId: ', departmentSelectedId, 'projectid: ', projectid]);
 
-    this.agentAvailabilityService
-    .getAvailableAgentsForDepartment(projectid, departmentSelected._id)
-    .subscribe( (availableAgents) => {
-      const availableAgentsForDep = availableAgents['available_agents'];
-      if (availableAgentsForDep && availableAgentsForDep.length <= 0) {
-        that.addFirstMessage(that.g.LABEL_FIRST_MSG_NO_AGENTS);
-      } else {
-        that.addFirstMessage(that.g.LABEL_FIRST_MSG);
-      }
-    }, (error) => {
-      console.error('2 setOnlineStatus::setAvailableAgentsStatus', error);
-    }, () => {
-    });
-  }
+  //   this.agentAvailabilityService
+  //   .getAvailableAgentsForDepartment(projectid, departmentSelectedId)
+  //   .subscribe( (availableAgents) => {
+  //     const availableAgentsForDep = availableAgents['available_agents'];
+  //     if (availableAgentsForDep && availableAgentsForDep.length <= 0) {
+  //       that.addFirstMessage(that.g.LABEL_FIRST_MSG_NO_AGENTS);
+  //     } else {
+  //       that.addFirstMessage(that.g.LABEL_FIRST_MSG);
+  //     }
+  //   }, (error) => {
+  //     console.error('2 setOnlineStatus::setAvailableAgentsStatus', error);
+  //   }, () => {
+  //   });
+  // }
 
   /**
    * mi sottoscrivo al nodo /projects/' + projectId + '/users/availables
@@ -291,6 +322,7 @@ export class ConversationComponent implements OnInit, AfterViewInit, OnChanges {
     const lang = this.g.lang;
     const channelType = this.g.channelType;
     const projectid = this.g.projectid;
+
 
     text = replaceBr(text);
     const timestampSendingMessage = new Date('01/01/2000').getTime();
@@ -332,8 +364,8 @@ export class ConversationComponent implements OnInit, AfterViewInit, OnChanges {
     const recipientId = this.g.recipientId;
     const channelType = this.g.channelType;
     this.g.wdLog(['setConversation recipientId: ', recipientId, channelType]);
-    if ( !recipientId ) { this.g.setParameters('recipientId', this.setRecipientId()); }
-    if ( !channelType ) { this.g.setParameters('channelType', this.setChannelType()); }
+    if ( !recipientId ) { this.g.setParameter('recipientId', this.setRecipientId()); }
+    if ( !channelType ) { this.g.setParameter('channelType', this.setChannelType()); }
     this.conversationWith = recipientId as string;
   }
 
@@ -377,9 +409,10 @@ export class ConversationComponent implements OnInit, AfterViewInit, OnChanges {
 
       this.messagingService.initialize( senderId, tenant, channelType );
       this.upSvc.initialize(senderId, tenant, this.conversationWith);
-      this.contactService.initialize(senderId, tenant, this.conversationWith);
+      // his.contactService.initialize(senderId, tenant, this.conversationWith);
       this.messagingService.connect( this.conversationWith );
       this.messages = this.messagingService.messages;
+      this.scrollToBottomStart();
       // this.messages.concat(this.messagingService.messages);
       // this.messagingService.resetBadge(this.conversationWith);
   }
@@ -434,11 +467,11 @@ export class ConversationComponent implements OnInit, AfterViewInit, OnChanges {
     const that = this;
     this.starRatingWidgetService.setOsservable(false);
     // CHIUSURA CONVERSAZIONE (ELIMINAZIONE UTENTE DAL GRUPPO)
-     // tslint:disable-next-line:max-line-length
-      that.g.wdLog(['setSubscriptions!!!! StartRating', this.starRatingWidgetService.obsCloseConversation, this.starRatingWidgetService]);
+    // tslint:disable-next-line:max-line-length
+    that.g.wdLog(['setSubscriptions!!!! StartRating', this.starRatingWidgetService.obsCloseConversation, this.starRatingWidgetService]);
     const subscriptionisOpenStartRating: Subscription = this.starRatingWidgetService.obsCloseConversation
     .subscribe(isOpenStartRating => {
-      that.g.setParameters('isOpenStartRating', isOpenStartRating);
+      that.g.setParameter('isOpenStartRating', isOpenStartRating);
       if (isOpenStartRating === false) {
           that.g.wdLog(['CHIUDOOOOO!!!! StartRating']);
       } else if (isOpenStartRating === true) {
@@ -446,7 +479,7 @@ export class ConversationComponent implements OnInit, AfterViewInit, OnChanges {
       }
     });
     this.subscriptions.push(subscriptionisOpenStartRating);
-
+    console.log('---------------------->', this.subscriptions);
     // NUOVO MESSAGGIO!!
     /**
      * se:          non sto già scrollando oppure il messaggio l'ho inviato io -> scrollToBottom
@@ -462,7 +495,7 @@ export class ConversationComponent implements OnInit, AfterViewInit, OnChanges {
         that.g.wdLog(['1-------']);
         setTimeout(function () {
           that.scrollToBottom();
-        }, 100);
+        }, 200);
       } else if (that.scrollMe) {
         const divScrollMe = that.scrollMe.nativeElement;
         const checkContentScrollPosition = that.checkContentScrollPosition(divScrollMe);
@@ -471,13 +504,34 @@ export class ConversationComponent implements OnInit, AfterViewInit, OnChanges {
           // https://developer.mozilla.org/it/docs/Web/API/Element/scrollHeight
           setTimeout(function () {
             that.scrollToBottom();
-          }, 100);
+          }, 0);
         } else {
           that.g.wdLog(['3-------']);
           that.NUM_BADGES++;
           that.soundMessage();
         }
       }
+
+      /**
+       * 
+       */
+      if (newMessage && newMessage.text && that.lastMsg) {
+        setTimeout(function () {
+          let messaggio = '';
+          const testFocus = ((document.getElementById('testFocus') as HTMLInputElement));
+          const altTextArea = ((document.getElementById('altTextArea') as HTMLInputElement));
+          if (altTextArea && testFocus) {
+            setTimeout(function () {
+              if (newMessage.sender !== that.g.senderId) {
+                messaggio += 'messaggio ricevuto da operatore: ' + newMessage.sender_fullname;
+                altTextArea.innerHTML =  messaggio + ',  testo messaggio: ' + newMessage.text;
+                testFocus.focus();
+              }
+            }, 1000);
+          }
+        }, 1000);
+      }
+
     });
 
     this.subscriptions.push(obsAddedMessage);
@@ -489,14 +543,20 @@ export class ConversationComponent implements OnInit, AfterViewInit, OnChanges {
   private checkWritingMessages() {
     const that = this;
     const tenant = this.g.tenant;
-    const messagesRef = this.messagingService.checkWritingMessages(tenant, this.conversationWith);
-    messagesRef.on('value', function (writing) {
-        if (writing.exists()) {
-            that.writingMessage = that.g.LABEL_WRITING;
-        } else {
-            that.writingMessage = '';
-        }
-    });
+    try {
+      const messagesRef = this.messagingService.checkWritingMessages(tenant, this.conversationWith);
+      if (messagesRef) {
+        messagesRef.on('value', function (writing) {
+          if (writing.exists()) {
+              that.writingMessage = that.g.LABEL_WRITING;
+          } else {
+              that.writingMessage = '';
+          }
+        });
+      }
+    } catch (e) {
+      this.g.wdLog(['> Error :' + e]);
+    }
   }
 
 
@@ -597,9 +657,7 @@ export class ConversationComponent implements OnInit, AfterViewInit, OnChanges {
           // this.setDepartment();
           msg = replaceBr(msg);
           this.sendMessage(msg, TYPE_MSG_TEXT);
-          // this.scrollToBottom();
-          this.restoreTextArea();
-          this.scrollToBottom();
+          // this.restoreTextArea();
       }
       // (<HTMLInputElement>document.getElementById('chat21-main-message-context')).value = '';
       // this.textInputTextArea = '';
@@ -631,8 +689,8 @@ export class ConversationComponent implements OnInit, AfterViewInit, OnChanges {
     sendMessage(msg, type, metadata?) {
       (metadata) ? metadata = metadata : metadata = '';
       this.g.wdLog(['SEND MESSAGE: ', msg, type, metadata]);
-      if (msg && msg.trim() !== '' || type !== TYPE_MSG_TEXT) {
-          let recipientFullname = this.GUEST_LABEL;
+      if (msg && msg.trim() !== '' || type === TYPE_MSG_IMAGE || type === TYPE_MSG_FILE ) {
+          let recipientFullname = this.g.GUEST_LABEL;
           const attributes = this.g.attributes;
           const projectid = this.g.projectid;
           const channelType = this.g.channelType;
@@ -640,12 +698,13 @@ export class ConversationComponent implements OnInit, AfterViewInit, OnChanges {
           const userEmail = this.g.userEmail;
           const showWidgetNameInConversation = this.g.showWidgetNameInConversation;
           const widgetTitle = this.g.widgetTitle;
+          const conversationWith = this.conversationWith;
           this.triggerBeforeSendMessageEvent(
             recipientFullname,
             msg,
             type,
             metadata,
-            this.conversationWith,
+            conversationWith,
             recipientFullname,
             attributes,
             projectid,
@@ -658,7 +717,7 @@ export class ConversationComponent implements OnInit, AfterViewInit, OnChanges {
           } else if (attributes && attributes.userFullname) {
             recipientFullname = attributes.userFullname;
           } else {
-            recipientFullname = this.GUEST_LABEL;
+            recipientFullname = this.g.GUEST_LABEL;
           }
           if (showWidgetNameInConversation && showWidgetNameInConversation === true) {
             recipientFullname += ' - ' + widgetTitle;
@@ -668,7 +727,7 @@ export class ConversationComponent implements OnInit, AfterViewInit, OnChanges {
             msg,
             type,
             metadata,
-            this.conversationWith,
+            conversationWith,
             recipientFullname,
             attributes,
             projectid,
@@ -676,6 +735,7 @@ export class ConversationComponent implements OnInit, AfterViewInit, OnChanges {
             );
           this.triggerAfterSendMessageEvent(messageSent);
           this.isNewConversation = false;
+          this.restoreTextArea();
       }
   }
 
@@ -699,11 +759,15 @@ export class ConversationComponent implements OnInit, AfterViewInit, OnChanges {
       // tslint:disable-next-line:max-line-length
       const beforeMessageRender = new CustomEvent('beforeMessageRender',
         { detail: { message: message, sanitizer: this.sanitizer, messageEl: messageEl, component: component} });
-
-      const returnEventValue = this.elRoot.nativeElement.dispatchEvent(beforeMessageRender);
-      // console.log('returnEventValue', returnEventValue);
+      const windowContext = this.g.windowContext;
+      if (windowContext.tiledesk && windowContext.tiledesk.tiledeskroot) {
+          windowContext.tiledesk.tiledeskroot.dispatchEvent(beforeMessageRender);
+          this.g.windowContext = windowContext;
+      } else {
+        const returnEventValue = this.elRoot.nativeElement.dispatchEvent(beforeMessageRender);
+      }
     } catch (e) {
-        console.error('Error triggering triggerBeforeMessageRender', e);
+      this.g.wdLog(['> Error :' + e]);
     }
   }
 
@@ -713,11 +777,15 @@ export class ConversationComponent implements OnInit, AfterViewInit, OnChanges {
       // tslint:disable-next-line:max-line-length
       const afterMessageRender = new CustomEvent('afterMessageRender',
         { detail: { message: message, sanitizer: this.sanitizer, messageEl: messageEl, component: component} });
-
-      const returnEventValue = this.elRoot.nativeElement.dispatchEvent(afterMessageRender);
-      // console.log('returnEventValue', returnEventValue);
+      const windowContext = this.g.windowContext;
+      if (windowContext.tiledesk && windowContext.tiledesk.tiledeskroot) {
+          windowContext.tiledesk.tiledeskroot.dispatchEvent(afterMessageRender);
+          this.g.windowContext = windowContext;
+      } else {
+        const returnEventValue = this.elRoot.nativeElement.dispatchEvent(afterMessageRender);
+      }
     } catch (e) {
-        console.error('Error triggering triggerAfterMessageRender', e);
+      this.g.wdLog(['> Error :' + e]);
     }
   }
 
@@ -728,9 +796,15 @@ export class ConversationComponent implements OnInit, AfterViewInit, OnChanges {
     try {
         // tslint:disable-next-line:max-line-length
         const beforeMessageSend = new CustomEvent('beforeMessageSend', { detail: { senderFullname: senderFullname, text: text, type: type, metadata, conversationWith: conversationWith, recipientFullname: recipientFullname, attributes: attributes, projectid: projectid, channelType: channel_type } });
-        this.el.nativeElement.dispatchEvent(beforeMessageSend);
+        const windowContext = this.g.windowContext;
+        if (windowContext.tiledesk && windowContext.tiledesk.tiledeskroot) {
+            windowContext.tiledesk.tiledeskroot.dispatchEvent(beforeMessageSend);
+            this.g.windowContext = windowContext;
+        } else {
+          this.el.nativeElement.dispatchEvent(beforeMessageSend);
+        }
     } catch (e) {
-        console.error('Error triggering triggerBeforeSendMessageEvent', e);
+      this.g.wdLog(['> Error :' + e]);
     }
   }
 
@@ -739,9 +813,15 @@ export class ConversationComponent implements OnInit, AfterViewInit, OnChanges {
     try {
         // tslint:disable-next-line:max-line-length
         const afterMessageSend = new CustomEvent('afterMessageSend', { detail: { message: message } });
-        this.el.nativeElement.dispatchEvent(afterMessageSend);
+        const windowContext = this.g.windowContext;
+        if (windowContext.tiledesk && windowContext.tiledesk.tiledeskroot) {
+            windowContext.tiledesk.tiledeskroot.dispatchEvent(afterMessageSend);
+            this.g.windowContext = windowContext;
+        } else {
+          this.el.nativeElement.dispatchEvent(afterMessageSend);
+        }
     } catch (e) {
-        console.error('Error triggering triggerAfterSendMessageEvent', e);
+      this.g.wdLog(['> Error :' + e]);
     }
   }
 
@@ -864,40 +944,92 @@ export class ConversationComponent implements OnInit, AfterViewInit, OnChanges {
     }
   }
 
+
   /**
    * scrollo la lista messaggi all'ultimo
    * chiamato in maniera ricorsiva sino a quando non risponde correttamente
   */
-  scrollToBottom() {
-    this.g.wdLog([' scrollToBottom: ', this.isScrolling]);
-    const that = this;
-    if ( this.isScrolling === false ) {
-      // const divScrollMe = this.scrollMe.nativeElement;
-      setTimeout(function () {
-        try {
-          that.isScrolling = true;
-          const objDiv = document.getElementById(that.idDivScroll);
-          //// https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollIntoView
-          setTimeout(function () {
-            objDiv.scrollIntoView(false);
-          }, 100);
-          that.isScrolling = false;
-          //   that.g.wdLog(['checkContentScrollPosition ::', this.divScrollMe);
-          //   that.g.wdLog(['divScrollMe.diff ::', this.divScrollMe.scrollHeight - this.divScrollMe.scrollTop);
-          //   that.g.wdLog(['divScrollMe.clientHeight ::', this.divScrollMe.clientHeight);
-          // try {
-          //   this.divScrollMe.nativeElement.scrollToTop = this.divScrollMe.nativeElement.scrollHeight;
-          // } catch ( err ) { }
-          // // that.badgeNewMessages = 0;
-          // console.log(objDiv);
-        } catch (err) {
-            that.g.wdLog(['RIPROVO ::']);
-            that.isScrolling = false;
-          // that.scrollToBottom();
-        }
-      }, 0);
-    }
+
+ scrollToBottomStart() {
+  const that = this;
+  if ( this.isScrolling === false ) {
+    setTimeout(function () {
+      try {
+        that.isScrolling = true;
+        const objDiv = document.getElementById(that.idDivScroll);
+        setTimeout(function () {
+          that.g.wdLog(['objDiv::', objDiv.scrollHeight]);
+          objDiv.scrollIntoView(false);
+          objDiv.style.opacity = '1';
+        }, 200);
+        that.isScrolling = false;
+      } catch (err) {
+        that.g.wdLog(['> Error :' + err]);
+      }
+    }, 0);
   }
+}
+
+  /**
+   * scrollo la lista messaggi all'ultimo
+   * chiamato in maniera ricorsiva sino a quando non risponde correttamente
+  */
+ scrollToBottom() {
+  this.g.wdLog([' scrollToBottom: ', this.isScrolling]);
+  const that = this;
+  // const divScrollMe = this.scrollMe.nativeElement;
+
+  if ( this.isScrolling === false ) {
+    // const divScrollMe = this.scrollMe.nativeElement;
+    setTimeout(function () {
+      try {
+        that.isScrolling = true;
+        const objDiv = document.getElementById(that.idDivScroll);
+        setTimeout(function () {
+          try {
+            objDiv.scrollIntoView({behavior: 'smooth', block: 'end'});
+            that.g.wdLog(['objDiv::', objDiv.scrollHeight]);
+          } catch (err) {
+            that.g.wdLog(['> Error :' + err]);
+          }
+          // objDiv.scrollIntoView(false);
+        }, 0);
+        that.isScrolling = false;
+
+        //// https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollIntoView
+        // setTimeout(function () {
+        //   objDiv.scrollIntoView({behavior: 'smooth', block: 'end'});
+        // }, 500);
+
+        // let checkContentScrollPosition = false;
+        // do {
+        //   setTimeout(function () {
+        //     that.g.wdLog(['RIPROVO dopo 1 sec::']);
+        //     objDiv.scrollIntoView({behavior: 'smooth', block: 'end'});
+        //     checkContentScrollPosition = that.checkContentScrollPosition(divScrollMe);
+        //   }, 1000);
+        // }
+        // while (checkContentScrollPosition === false);
+        // that.isScrolling = false;
+
+        //   that.g.wdLog(['checkContentScrollPosition ::', this.divScrollMe);
+        //   that.g.wdLog(['divScrollMe.diff ::', this.divScrollMe.scrollHeight - this.divScrollMe.scrollTop);
+        //   that.g.wdLog(['divScrollMe.clientHeight ::', this.divScrollMe.clientHeight);
+        // try {
+        //   this.divScrollMe.nativeElement.scrollToTop = this.divScrollMe.nativeElement.scrollHeight;
+        // } catch ( err ) { }
+        // // that.badgeNewMessages = 0;
+        // console.log(objDiv);
+      } catch (err) {
+          that.g.wdLog(['> Error :' + err]);
+          setTimeout(function () {
+            that.isScrolling = false;
+          }, 0);
+        //that.scrollToBottom();
+      }
+    }, 0);
+  }
+}
 
   // ========= end:: functions scroll position ======= //
 
@@ -945,7 +1077,7 @@ export class ConversationComponent implements OnInit, AfterViewInit, OnChanges {
                 imageXLoad.onload = function () {
                   that.g.wdLog(['onload immagine']);
                   // that.arrayFilesLoad.push(imageXLoad);
-                  const uid = imageXLoad.src.substring(imageXLoad.src.length - 16);
+                  const uid = (new Date().getTime()).toString(36); // imageXLoad.src.substring(imageXLoad.src.length - 16);
                   that.arrayFilesLoad[0] = { uid: uid, file: imageXLoad, type: typeFile };
                   that.g.wdLog(['OK: ', that.arrayFilesLoad[0]]);
                   // INVIO MESSAGGIO
@@ -958,13 +1090,12 @@ export class ConversationComponent implements OnInit, AfterViewInit, OnChanges {
                   title: nameFile
                 };
                 // that.arrayFilesLoad.push(imageXLoad);
-                const uid = fileXLoad.src.substring(fileXLoad.src.length - 16);
+                const uid = (new Date().getTime()).toString(36); // imageXLoad.src.substring(imageXLoad.src.length - 16);
                 that.arrayFilesLoad[0] = { uid: uid, file: fileXLoad, type: typeFile };
                 that.g.wdLog(['OK: ', that.arrayFilesLoad[0]]);
                 // INVIO MESSAGGIO
                 that.loadFile();
               }
-
             }, false);
 
             if (event.target.files[0]) {
@@ -1021,9 +1152,11 @@ export class ConversationComponent implements OnInit, AfterViewInit, OnChanges {
         const that = this;
         const send_order_btn = <HTMLInputElement>document.getElementById('chat21-start-upload-doc');
         send_order_btn.disabled = true;
-          that.g.wdLog(['AppComponent::uploadSingle::', metadata, file]);
+        that.g.wdLog(['AppComponent::uploadSingle::', metadata, file]);
         // const file = this.selectedFiles.item(0);
         const currentUpload = new UploadModel(file);
+        // console.log(currentUpload.file);
+
         const uploadTask = this.upSvc.pushUpload(currentUpload);
         uploadTask.then(snapshot => {
             return snapshot.ref.getDownloadURL();   // Will return a promise with the download link
@@ -1040,7 +1173,7 @@ export class ConversationComponent implements OnInit, AfterViewInit, OnChanges {
                     message = 'Image: ' + metadata.src;
                 }
                 that.sendMessage(message, type_message, metadata);
-                that.scrollToBottom();
+                // that.scrollToBottom();
                 that.isFilePendingToUpload = false;
                 // return downloadURL;
             })
@@ -1168,23 +1301,25 @@ export class ConversationComponent implements OnInit, AfterViewInit, OnChanges {
   // ========= end:: functions send image ======= //
 
   returnHome() {
-    this.g.setParameters('activeConversation', null);
+    this.g.setParameter('activeConversation', null);
     this.eventClose.emit();
   }
 
   returnCloseWidget() {
-    this.g.setParameters('activeConversation', null);
+    this.g.setParameter('activeConversation', null);
     this.eventCloseWidget.emit();
   }
 
   dowloadTranscript() {
-    const url = 'https://api.tiledesk.com/v1/public/requests/' + this.conversationWith + '/messages.html';
+    const url = this.API_URL + 'public/requests/' + this.conversationWith + '/messages.html';
     const windowContext = this.g.windowContext;
     windowContext.open(url, '_blank');
+    this.isMenuShow  = false;
   }
 
   toggleSound() {
-    this.g.setParameters('isSoundActive', !this.g.isSoundActive);
+    this.g.setParameter('isSoundActive', !this.g.isSoundActive);
+    this.isMenuShow  = false;
     // this.g.isSoundActive = !this.g.isSoundActive;
     // if ( this.g.isSoundActive === false ) {
     //   this.storageService.setItem('isSoundActive', false);
@@ -1197,6 +1332,13 @@ export class ConversationComponent implements OnInit, AfterViewInit, OnChanges {
     this.isMenuShow = !this.isMenuShow;
   }
 
+  openInputFiles() {
+    alert('ok');
+    if (document.getElementById('chat21-file')) {
+     const docInput = document.getElementById('chat21-file');
+     docInput.style.display = 'block';
+    }
+  }
 
 
 
@@ -1213,6 +1355,7 @@ export class ConversationComponent implements OnInit, AfterViewInit, OnChanges {
 
   /** */
   unsubscribe() {
+    this.g.wdLog(['******* unsubscribe *******']);
     this.subscriptions.forEach(function (subscription) {
         subscription.unsubscribe();
     });
@@ -1251,5 +1394,24 @@ export class ConversationComponent implements OnInit, AfterViewInit, OnChanges {
     this.g.wdLog(['hideMenuOptions']);
     this.isMenuShow  = false;
  }
+
+  isLastMessage(idMessage: string) {
+    // console.log('idMessage: ' + idMessage + 'id LAST Message: ' + this.messages[this.messages.length - 1].uid);
+    if (idMessage === this.messages[this.messages.length - 1].uid) {
+      return true;
+    }
+    return false;
+  }
+
+  /** */
+  returnOpenAttachment($event: String) {
+    if ($event) {
+      const metadata = {
+        'button': true
+      };
+      this.sendMessage($event, TYPE_MSG_TEXT, metadata);
+      // this.sendMessage($event, TYPE_MSG_TEXT);
+    }
+  }
 
 }

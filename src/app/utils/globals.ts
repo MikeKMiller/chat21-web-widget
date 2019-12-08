@@ -21,7 +21,8 @@ export class Globals {
   obsIsOpen = new BehaviorSubject<boolean>(null);
   // obsGlobalsParameters =  new BehaviorSubject<any>(null);
   BASE_LOCATION = 'https://widget.tiledesk.com/v2';
-  POWERED_BY = '<a target="_blank" href="http://www.tiledesk.com/">Powered by <b>TileDesk</b></a>';
+  POWERED_BY = '<a tabindex="-1" target="_blank" href="http://www.tiledesk.com/">Powered by <b>TileDesk</b></a>';
+
   DEFAULT_LOGO_CHAT = '/assets/images/tiledesk_logo_white_small.png';
   WIDGET_TITLE = 'TileDesk';
 
@@ -50,24 +51,29 @@ export class Globals {
   filterSystemMsg: boolean; /** se è true i messaggi inviati da system non vengono visualizzati */
   baseLocation: string;
   availableAgents: Array<User> = [];
+  isLogout = false; /** indica se ho appena fotto il logout */
 
   attributes: any;
   token: string;
   lang: string;
   conversationsBadge: number;
   activeConversation: string;
+
   isOpenStartRating: boolean;
   departments: DepartmentModel[];
   departmentSelected: DepartmentModel;
-  departmentDefault: DepartmentModel;
+  departmentDefault: any;
   isOpenMenuOptions: boolean;
   isOpenPrechatForm: boolean;
 
-  areAgentsAvailable = false;
+  // areAgentsAvailable = false;
   areAgentsAvailableText: string;
   availableAgentsStatus = false; // indica quando è impostato lo stato degli agenti nel subscribe
   signInWithCustomToken: boolean;
   displayEyeCatcherCard: string;
+
+  firstOpen = true;
+  departmentID = null;
 
   // ============ BEGIN: LABELS ==============//
   LABEL_PLACEHOLDER: string;
@@ -118,7 +124,7 @@ export class Globals {
   SEE_PREVIOUS: string;
   WAITING_TIME_FOUND: string;
   WAITING_TIME_NOT_FOUND: string;
-
+  CLOSED: string;
 
 
   // ============ BEGIN: EXTERNAL PARAMETERS ==============//
@@ -140,6 +146,8 @@ export class Globals {
    hideHeaderCloseButton: boolean;
    themeColor: string;
    themeForegroundColor: string;
+   themeColor50: string;
+   colorGradient: string;
    showWidgetNameInConversation: boolean;
    allowTranscriptDownload: boolean;
    poweredBy: string;
@@ -147,6 +155,7 @@ export class Globals {
    wellcomeTitle: string;
    wellcomeMsg: string;
    recipientId: String;
+   recipientFullname: String;
    userId: string;
    userPassword: string;
    userToken: string;
@@ -162,9 +171,17 @@ export class Globals {
    showLogoutOption: boolean;
    supportMode: boolean;
 
+   online_msg: string;
+   offline_msg: string;
+
+   customAttributes: string;
+   hideAttachButton: boolean;
+
+   isOpenNewMessage: boolean;
+
   constructor(
   ) {
-    console.log(' ---------------- 1: initDefafultParameters ---------------- ');
+    // console.log(' ---------------- 1: initDefafultParameters ---------------- ');
   }
 
 
@@ -172,7 +189,7 @@ export class Globals {
    * 1: initParameters
    */
   initDefafultParameters() {
-    console.log('initDefafultParameters, ', window, window.frameElement);
+    // console.log('initDefafultParameters, ', window, window.frameElement);
     this.globalsParameters = {};
     this.filterSystemMsg = true;
 
@@ -273,6 +290,13 @@ export class Globals {
     // this.parameters['availableAgents'] = [];
 
     this.showLogoutOption = true;
+
+    this.offline_msg = this.LABEL_FIRST_MSG_NO_AGENTS;
+    this.online_msg = this.LABEL_FIRST_MSG;
+
+    this.hideAttachButton = false;
+    this.isOpenNewMessage = false;
+
     // ============ END: SET EXTERNAL PARAMETERS ==============//
 
 
@@ -343,10 +367,10 @@ export class Globals {
   /**
    * @param attributes
    */
-  initialize(attributes: any) {
+  initialize() {
     this.createDefaultSettingsObject();
-    this.setParameters('isMobile', detectIfIsMobile(this.windowContext));
-    this.setParameters('attributes', attributes);
+    this.setParameter('isMobile', detectIfIsMobile(this.windowContext));
+    this.setParameter('attributes', this.attributes);
   }
 
   /**
@@ -372,17 +396,22 @@ export class Globals {
       'marginY': this.marginY, 'isLogEnabled': this.isLogEnabled,
       'filterByRequester': this.filterByRequester, 'persistence': this.persistence,
       'showWaitTime': this.showWaitTime, 'showAvailableAgents': this.showAvailableAgents,
-      'showLogoutOption': this.showLogoutOption
+      'showLogoutOption': this.showLogoutOption, 'hideAttachButton': this.hideAttachButton
     };
   }
 
+
+  setColorWithGradient() {
+    this.themeColor50 = convertColorToRGBA(this.themeColor, 30); // this.g.themeColor + 'CC';
+    this.colorGradient = 'linear-gradient(' + this.themeColor + ', ' + this.themeColor50 + ')';
+}
 
   /**
    *
    * @param val
    */
   public setIsOpen(val: boolean) {
-    console.log('setIsOpen', val);
+    // console.log('setIsOpen', val);
     this.isOpen = val;
     this.obsIsOpen.next(val);
   }
@@ -392,10 +421,20 @@ export class Globals {
    * @param key
    * @param val
    */
-  public setParameters(key: string, val: any) {
+  public setParameter(key: string, val: any) {
     this[key] = val;
     const obj = {'key': key, 'val': val};
     this.obsObjChanged.next(obj);
+  }
+
+  /**
+   *
+   * @param key
+   * @param val
+   */
+  public setAttributeParameter(key: string, val: any) {
+    this.attributes[key] = val;
+    this.setParameter('attributes', this.attributes);
   }
 
   /**
